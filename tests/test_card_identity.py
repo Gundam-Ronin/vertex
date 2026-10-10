@@ -166,3 +166,20 @@ class TestCompMatching:
         assert comp_mismatch(raw, comp("2023 Prizm Victor Wembanyama #136 PSA 10")) == "grade"
         assert comp_mismatch(raw, comp("2023 Prizm Victor Wembanyama #136 PSA 10 candidate")) is None
         assert comp_mismatch(raw, comp("2023 Prizm Victor Wembanyama #136", grader="PSA", grade="10")) == "grade"
+
+
+def test_insert_set_words_are_required():
+    ident = identity(
+        "2023-24 Panini Prizm Victor Wembanyama Emergent #12 PSA 10",
+        aspects={"Set": "2023-24 Panini Prizm", "Insert Set": "Emergent", "Card Number": "12",
+                 "Graded": "Yes", "Professional Grader": "PSA", "Grade": "10"},
+        condition_id="2750",
+    )
+    assert comp_mismatch(ident, comp("2023-24 Prizm Victor Wembanyama #12 PSA 10")) == "set"
+    assert comp_mismatch(ident, comp("2023-24 Prizm Victor Wembanyama Emergent #12 PSA 10")) is None
+
+
+def test_base_insert_set_value_adds_no_requirement():
+    ident = identity("2023 Prizm Victor Wembanyama #136",
+                     aspects={"Set": "2023-24 Panini Prizm", "Insert Set": "Base Set"})
+    assert ident.required_words == ["prizm"]

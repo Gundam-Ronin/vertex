@@ -109,7 +109,7 @@ def run(rows: list[WatchlistRow], ebay: EbayClient, cards: CardApiClient, option
         if quota_hit:
             e.no_bid_reason = "Card API daily row allowance used up before this card was comped"
             continue
-        key = (e.identity.key(), e.identity.set_name)
+        key = e.identity.key()
         if key not in cache:
             try:
                 cache[key] = fetch_comps(cards, e.identity, cutoff, options.comp_platform, options.max_rows_per_card)

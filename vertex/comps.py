@@ -4,7 +4,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date
 
-from .card_identity import CardIdentity, CompRecord, comp_mismatch, set_words
+from .card_identity import CardIdentity, CompRecord, comp_mismatch
 from .cardapi import CardApiClient, SalesQuery
 
 
@@ -18,7 +18,7 @@ class CompResult:
 
 def build_query(identity: CardIdentity, include_number: bool = True) -> str:
     """Plain words only: the API ANDs every word, so each one must be in a matching title."""
-    parts = [identity.player or "", *set_words(identity.set_name)]
+    parts = [identity.player or "", *identity.required_words]
     if include_number and identity.card_number:
         parts.append(identity.card_number)
     return " ".join(p for p in parts if p).strip()

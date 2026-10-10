@@ -9,7 +9,7 @@ A comp counts only if it matches the listing on all of:
   * player name (every name token present)
   * year (when the listing has one)
   * card number (when the listing has one)
-  * set name words (from the listing's "Set" item specific)
+  * set and insert name words (from the listing's "Set" and "Insert Set" item specifics)
   * grading company and grade, or both raw
   * the exact set of parallel/variant markers (colors, refractor, auto, /99, ...)
 """
@@ -292,6 +292,7 @@ class CardIdentity:
     grade: str | None
     variants: frozenset[str] = field(default_factory=frozenset)
     set_name: str | None = None
+    insert_name: str | None = None
 
     @property
     def graded(self) -> bool:
@@ -301,14 +302,19 @@ class CardIdentity:
     def grade_label(self) -> str:
         return f"{self.grader} {self.grade}" if self.graded else "raw"
 
+    @property
+    def required_words(self) -> list[str]:
+        """Set and insert words every comp title must contain."""
+        return list(dict.fromkeys(set_words(self.set_name) + set_words(self.insert_name)))
+
     def key(self) -> tuple:
         return (
-            fold(self.player or ""), self.year, self.card_number,
-            self.grader, self.grade, tuple(sorted(self.variants)),
+            fold(self.player or ""), self.year, self.card_number, self.grader, self.grade,
+            tuple(sorted(self.variants)), tuple(self.required_words),
         )
 
     def describe(self) -> str:
-        parts = [str(self.year) if self.year else "", self.set_name or "", self.player or ""]
+        parts = [str(self.year) if self.year else "", self.set_name or "", self.insert_name or "", self.player or ""]
         if self.card_number:
             parts.append(f"#{self.card_number}")
         if self.variants:
@@ -384,6 +390,7 @@ def identity_from_listing(
         grade=grade,
         variants=frozenset(variants),
         set_name=_aspect(aspects, "Set"),
+        insert_name=_aspect(aspects, "Insert Set"),
     )
     return identity, None
 
@@ -423,7 +430,7 @@ def comp_mismatch(identity: CardIdentity, comp: CompRecord) -> str | None:
     if identity.year and identity.year not in extract_years(comp.title):
         return "year"
     comp_words = set(re.findall(r"[a-z]+", fold(comp.title)))
-    if not all(w in comp_words for w in set_words(identity.set_name)):
+    if not all(w in comp_words for w in identity.required_words):
         return "set"
     if identity.card_number:
         comp_number = normalize_card_number(comp.card_number) or extract_card_number(comp.title)
