@@ -88,7 +88,8 @@ def scan(rows: list[WatchlistRow], ebay: EbayClient, options: RunOptions) -> tup
 
 def run(rows: list[WatchlistRow], ebay: EbayClient, cards: CardApiClient, options: RunOptions) -> RunResult:
     evaluations, window_end = scan(rows, ebay, options)
-    cutoff = (options.run_at - timedelta(days=COMP_RULE.lookback_days)).date()
+    # Sale dates are day-precision: count the last 30 calendar days, today included.
+    cutoff = options.run_at.date() - timedelta(days=COMP_RULE.lookback_days - 1)
     cache: dict[tuple, CompResult] = {}
     lookups = 0
     quota_hit = False

@@ -37,3 +37,11 @@ def test_empty():
     summary = summarize([])
     assert summary.median is None
     assert not passes_gate(summary)
+
+
+def test_price_exactly_on_a_fence_is_kept():
+    # Q1 = 35.99, Q3 = 49.99, lower fence exactly 14.99. Float math would put the fence at
+    # 14.990000000000002, trim 14.99 and lift the median from 39.99 to 41.99.
+    summary = summarize([14.99, 23.99, 35.99, 36.99, 39.99, 43.99, 49.99, 61.99, 62.99])
+    assert summary.count == 9
+    assert summary.median == 39.99

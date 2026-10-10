@@ -80,7 +80,7 @@ max all-in     = min(sell-side net − 10% × median,  70% × median)
 max bid        = max all-in − the auction's own shipping charge to you
 ```
 
-* **Median comp** is the median of real sold sales from the last 30 days, after dropping prices
+* **Median comp** is the median of real sold sales from the last 30 calendar days (today included), after dropping prices
   outside Tukey fences (Q1 − 1.5×IQR, Q3 + 1.5×IQR).
 * **Comp gate:** at least **8** sales must remain *after* trimming (SPEC §11.4), or no bid.
 * **Value band:** median comp must be **$20–$80**, or no bid.
@@ -132,7 +132,9 @@ hours later). It fills these columns:
   * **`no`** if the auction closed at or above your max bid. A tie goes to the earlier bidder.
   * **`possibly`** if it closed below your max bid, or ended with no bids at an opening price
     your max covered. It is only "possibly" because a hidden max above yours could still have won.
-* **`profit_at_close`:** for `possibly` rows, the profit if you had won at that price (best case).
+* **`profit_at_close`:** for `possibly` rows, the best-case profit if you had won. To beat the winner
+  a sniper pays at least one bid increment over the close, capped at your max; for a no-bid
+  auction it pays the opening price.
 
 What to look at after a week: the share of `BID` rows that are `possibly`, and the sum of
 `profit_at_close` over them, against the predicted profit.

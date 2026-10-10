@@ -14,8 +14,9 @@ query that comped it and matching on the eBay item number. It then fills:
                                  price we would have met. Only "possibly", because a hidden
                                  max above ours could still have won.
                       blank      we had no max bid for it
-  profit_at_close     for "possibly" rows: resale net minus the closing (or opening) price
-                      minus shipping, i.e. the best case if we had won
+  profit_at_close     for "possibly" rows: resale net minus shipping minus the least we could
+                      have paid (close + one bid increment, capped at our max; or the opening
+                      price for a no-bid auction), i.e. the best case if we had won
   close_source        "ebay", "ebay_unsold", "card_api", or "not_found" once neither
                       source has it after --give-up-days
 """
@@ -30,7 +31,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .buy_rule import sell_side_net
+from .buy_rule import bid_increment, sell_side_net
 from .cardapi import CardApiClient, CardApiError, CardApiQuotaExceeded, SalesQuery
 from .ebay import EbayClient, EbayError, Outcome, parse_time
 from .output import PREDICTION_COLUMNS
@@ -70,8 +71,11 @@ def score_sold(prediction: dict, close: float, bid_count: int | None, source: st
         prediction["would_have_won"] = "no"
         return
     prediction["would_have_won"] = "possibly"
+    # To beat the winner we must top their bid, so the least we could have paid is one
+    # increment over the close (but never more than our max).
+    paid = min(float(prediction["max_bid"]), round(close + bid_increment(close), 2))
     shipping = float(prediction["inbound_shipping"] or 0)
-    prediction["profit_at_close"] = f"{_net(prediction) - close - shipping:.2f}"
+    prediction["profit_at_close"] = f"{_net(prediction) - paid - shipping:.2f}"
 
 
 def score_unsold(prediction: dict, outcome: Outcome) -> None:
@@ -79,6 +83,8 @@ def score_unsold(prediction: dict, outcome: Outcome) -> None:
     prediction["close_source"] = "ebay_unsold"
     if not prediction["max_bid"] or prediction["bids_at_scan"] != "0" or not prediction["price_at_scan"]:
         return
+    if outcome.bid_count:
+        return  # it drew bids but did not sell (reserve not met): no telling what would have won
     opening = float(prediction["price_at_scan"])
     if float(prediction["max_bid"]) >= opening:
         # Nobody bid, so a bid at our max would have won at the opening price.

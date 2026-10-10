@@ -81,8 +81,8 @@ def test_scores_from_ebay_then_card_api(tmp_path):
     sold = rows["387100000111/r1"]
     assert (sold["actual_close_price"], sold["actual_bid_count"], sold["close_source"]) == ("18.00", "7", "ebay")
     assert sold["would_have_won"] == "possibly"
-    # 40 - 5.30 - 0.40 - 4.00 = 30.30 net, minus 18.00 and 4.99 shipping
-    assert sold["profit_at_close"] == "7.31"
+    # 40 - 5.30 - 0.40 - 4.00 = 30.30 net, minus 18.50 (close + $0.50 increment) and 4.99 shipping
+    assert sold["profit_at_close"] == "6.81"
     assert rows["387100000111/r2"]["actual_close_price"] == "18.00"
     assert ebay.asked.count("v1|387100000111|0") == 1
 
@@ -124,3 +124,21 @@ def test_already_scored_rows_are_left_alone(tmp_path):
     reconcile(path, ebay, None, NOW)
     assert ebay.asked == []
     assert read(path)["387100000111/r1"]["actual_close_price"] == "18.00"
+
+
+def test_reserve_not_met_is_not_a_win_at_the_opening_price(tmp_path):
+    path = tmp_path / "predictions.csv"
+    write(path, [prediction("387100000666", bids_at_scan="0", price_at_scan="9.99")])
+    reconcile(path, FakeEbay({"387100000666": Outcome("unsold", None, 6)}), None, NOW)
+    row = read(path)["387100000666/r1"]
+    assert row["close_source"] == "ebay_unsold"
+    assert row["would_have_won"] == "" and row["profit_at_close"] == ""
+
+
+def test_profit_at_close_never_pays_more_than_max_bid(tmp_path):
+    path = tmp_path / "predictions.csv"
+    write(path, [prediction("387100000111", max_bid="21.31")])
+    reconcile(path, FakeEbay({"387100000111": Outcome("sold", 21.00, 9)}), None, NOW)
+    row = read(path)["387100000111/r1"]
+    assert row["would_have_won"] == "possibly"
+    assert row["profit_at_close"] == f"{30.30 - 21.31 - 4.99:.2f}"
